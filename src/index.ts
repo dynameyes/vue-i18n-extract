@@ -26,11 +26,27 @@ const outputOptions: yargs.Options = {
   alias: 'o',
 };
 
+const removeUnusedKeysOptions: yargs.Options = {
+  // tslint:disable-next-line:max-line-length
+  describe: 'Use if you want to remove unused keys in translations files (ex. -r)',
+  demand: false,
+  alias: 'r',
+};
+
+const addMissingKeysOptions: yargs.Options = {
+  // tslint:disable-next-line:max-line-length
+  describe: 'Use if you want to add missing keys in translations files (ex. -a)',
+  demand: false,
+  alias: 'a',
+};
+
 const argv = yargs
 .command('report', 'Create a report from a glob of your Vue.js source files and your language files.', {
   vueFiles: vueFilesOptions,
   languageFiles: languageFilesOptions,
   output: outputOptions,
+  removeUnusedKeys: removeUnusedKeysOptions,
+  addMissingKeys: addMissingKeysOptions,
 })
 .help()
 .demandCommand(1, '')
@@ -47,13 +63,21 @@ export async function run (): Promise<any> {
 }
 
 async function report (command: any): Promise<void> {
-  const { vueFiles, languageFiles, output } = command;
+  const { vueFiles, languageFiles, output, removeUnusedKeys, addMissingKeys } = command;
 
   const resolvedVueFiles: string = path.resolve(process.cwd(), vueFiles);
   const resolvedLanguageFiles: string = path.resolve(process.cwd(), languageFiles);
 
   const i18nReport: I18NReport = api.createI18NReport(resolvedVueFiles, resolvedLanguageFiles);
   api.logI18NReport(i18nReport);
+
+  if (addMissingKeys) {
+    api.writeMissingKeysToJsonFilesSync(i18nReport);
+  }
+
+  if (removeUnusedKeys) {
+    api.removeUnusedKeysToJsonFilesSync(i18nReport);
+  }
 
   if (output) {
     await api.writeReportToFile(i18nReport, path.resolve(process.cwd(), output));

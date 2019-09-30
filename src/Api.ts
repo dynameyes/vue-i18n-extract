@@ -1,4 +1,13 @@
 import fs from 'fs';
+import _groupBy from 'lodash/groupBy';
+import _reduce from 'lodash/reduce';
+import _each from 'lodash/each';
+import _trim from 'lodash/trim';
+import _omit from 'lodash/omit';
+import _isArray from 'lodash/isArray';
+import _isObject from 'lodash/isObject';
+import _map from 'lodash/map';
+import jsonfile from 'jsonfile';
 import {
   readVueFiles,
   readLangFiles,
@@ -18,12 +27,12 @@ export enum VueI18NExtractReportTypes {
 };
 
 export default class VueI18NExtract {
-  public parseVueFiles (vueFilesPath: string): I18NItem[] {
+  public parseVueFiles(vueFilesPath: string): I18NItem[] {
     const filesList: SimpleFile[] = readVueFiles(vueFilesPath);
     return extractI18nItemsFromVueFiles(filesList);
   }
 
-  public parseLanguageFiles (languageFilesPath: string): I18NLanguage {
+  public parseLanguageFiles(languageFilesPath: string): I18NLanguage {
     const filesList: SimpleFile[] = readLangFiles(languageFilesPath);
     return extractI18nItemsFromLanguageFiles(filesList);
   }
@@ -39,18 +48,18 @@ export default class VueI18NExtract {
     const missingKeys = [];
     const unusedKeys = [];
 
-    Object.keys(parsedLanguageFiles).forEach((language) => {
-      let languageItems = parsedLanguageFiles[language];
+    Object.keys(parsedLanguageFiles).forEach((languageFilePath) => {
+      let languageItems = parsedLanguageFiles[languageFilePath];
 
       parsedVueFiles.forEach((vueItem) => {
         const usedByVueItem = ({ path }) => path === vueItem.path || path.startsWith(vueItem.path + '.');
-        if (!parsedLanguageFiles[language].some(usedByVueItem)) {
-          missingKeys.push(({ ...vueItem, language }));
+        if (!parsedLanguageFiles[languageFilePath].some(usedByVueItem)) {
+          missingKeys.push({ ...vueItem, languageFilePath });
         }
         languageItems = languageItems.filter((i) => !usedByVueItem(i));
       });
 
-      unusedKeys.push(...languageItems.map((item) => ({ ...item, language })));
+      unusedKeys.push(...languageItems.map((item) => ({ ...item, languageFilePath })));
     });
 
     let extracts = {};
@@ -64,7 +73,7 @@ export default class VueI18NExtract {
     return extracts;
   }
 
-  public logI18NReport (report: I18NReport): void {
+  public logI18NReport(report: I18NReport): void {
     Object.keys(report).forEach(key => {
       if (key === 'missingKeys') {
         logMissingKeys(report.missingKeys);
@@ -81,13 +90,64 @@ export default class VueI18NExtract {
         writePath,
         reportString,
         (err) => {
-          if (err) {
-            reject(err);
-            return;
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve();
+      });
+    });
+  }
+
+  public writeMissingKeysToJsonFilesSync (report: I18NReport): void {
+    const { missingKeys } = report;
+    const groupByLanguage = _groupBy(missingKeys, 'languageFilePath');
+
+    _each(groupByLanguage, (value, key) => {
+      const translationFilePath = key;
+      const translationFileContent = jsonfile.readFileSync(translationFilePath);
+      const translationObject = _reduce(
+        value,
+        (collection, translationDetails) => {
+          try {
+            const parsedTranslationValue = eval('(' + (_trim(translationDetails.value)) + ')');
+
+            if (_isArray(parsedTranslationValue) || _isObject(parsedTranslationValue)) {
+              collection[translationDetails.path] = _map(parsedTranslationValue,
+                (__, translationKey) => `{${translationKey}}`).join(' ');
+            } else {
+              collection[translationDetails.path] = parsedTranslationValue;
+            }
+          } catch (e) {
+            return collection;
           }
-          resolve();
+          return collection;
         },
+        {},
       );
+
+      const combinedTranslations = {
+        ...translationFileContent,
+        ...translationObject,
+      };
+
+      jsonfile.writeFileSync(translationFilePath, combinedTranslations, {
+        spaces: 2,
+      });
+    });
+  }
+
+  public removeUnusedKeysToJsonFilesSync (report: I18NReport): void {
+    const { unusedKeys } = report;
+    const groupByLanguage = _groupBy(unusedKeys, 'languageFilePath');
+
+    _each(groupByLanguage, (value, key) => {
+      const translationFilePath = key;
+      const translationFileContent = jsonfile.readFileSync(translationFilePath);
+      const cleanedTranslationFileContent = _omit(translationFileContent, value.map((unusedKey) => unusedKey.path));
+      jsonfile.writeFileSync(translationFilePath, cleanedTranslationFileContent, {
+        spaces: 2,
+      });
     });
   }
 }

@@ -9,6 +9,7 @@ export interface I18NItem {
   path: string;
   file?: string;
   language?: string;
+  value?: string;
 }
 
 export interface I18NLanguage {

@@ -3,7 +3,6 @@ import { SimpleFile, I18NLanguage } from './models';
 
 export function extractI18nItemsFromLanguageFiles (languageFiles: SimpleFile[]): I18NLanguage {
   return languageFiles.reduce((accumulator, file) => {
-    const language = file.fileName.substring(file.fileName.lastIndexOf('/') + 1, file.fileName.lastIndexOf('.'));
 
     const flattenedObject = dot.dot(file.content);
     const i18nInFile = Object.keys(flattenedObject).map((key, index) => {
@@ -11,10 +10,11 @@ export function extractI18nItemsFromLanguageFiles (languageFiles: SimpleFile[]):
         line: index,
         path: key,
         file: file.fileName,
+        value: flattenedObject[key],
       };
     });
 
-    accumulator[language] = i18nInFile;
+    accumulator[file.path] = i18nInFile;
     return accumulator;
   }, {});
 }
