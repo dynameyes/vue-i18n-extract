@@ -62,6 +62,7 @@
   "dependencies": {
     "cli-table3": "^0.5.1",
     "dot-object": "^1.7.1",
+    "esm": "^3.2.25",
     "is-valid-glob": "^1.0.0",
     "jsonfile": "^5.0.0",
     "lodash": "^4.17.15",

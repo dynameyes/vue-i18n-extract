@@ -15,12 +15,12 @@ export function extractI18nItemsFromVueFiles (sourceFiles: SimpleFile[]): I18NIt
 }
 
 function extractMethodMatches(file: SimpleFile): I18NItem[] {
-  const methodRegExp: RegExp = /(?:[$ .]tc?)\(\s*?("|'|`)(.*?)\1,\s*?(.*?)\s*?\)/g;
-  return [...getMatches(file, methodRegExp, 2, 3)];
+  const methodRegExp: RegExp = /(?:[ .]?(\$t|translate|\$tc))\(\s*?(["'`])(.*?)\2/g;
+  return [...getMatches(file, methodRegExp, 3, 3)];
 }
 
 function extractComponentMatches(file: SimpleFile): I18NItem[] {
-  const componentRegExp: RegExp = /(?:<i18n|<I18N)(?:.|\n)*?(?:[^:]path=("|'))(.*?)\1,\s*?(.*?)\s*?\)/g;
+  const componentRegExp: RegExp = /(?:<i18n|<I18N)(?:.|\n)*?(?:[^:]path=(["']))(.*?)\1/g;
   return [...getMatches(file, componentRegExp, 2, 3)];
 }
 

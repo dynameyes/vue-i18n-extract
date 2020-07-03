@@ -105,19 +105,20 @@ export default class VueI18NExtract {
 
     _each(groupByLanguage, (value, key) => {
       const translationFilePath = key;
+
       const translationFileContent = jsonfile.readFileSync(translationFilePath);
+      const dynamicKeyKeyword = "dynamic.";
+
       const translationObject = _reduce(
         value,
         (collection, translationDetails) => {
           try {
-            const parsedTranslationValue = eval('(' + (_trim(translationDetails.value)) + ')');
 
-            if (_isArray(parsedTranslationValue) || _isObject(parsedTranslationValue)) {
-              collection[translationDetails.path] = _map(parsedTranslationValue,
-                (__, translationKey) => `{${translationKey}}`).join(' ');
-            } else {
-              collection[translationDetails.path] = parsedTranslationValue;
+            if (translationDetails.path.includes(dynamicKeyKeyword)) {
+              return collection;
             }
+
+            collection[translationDetails.path] = '';
           } catch (e) {
             return collection;
           }
@@ -144,7 +145,15 @@ export default class VueI18NExtract {
     _each(groupByLanguage, (value, key) => {
       const translationFilePath = key;
       const translationFileContent = jsonfile.readFileSync(translationFilePath);
-      const cleanedTranslationFileContent = _omit(translationFileContent, value.map((unusedKey) => unusedKey.path));
+      const dynamicKeyKeyword = "dynamic.";
+
+      const cleanedTranslationFileContent = _omit(
+        translationFileContent,
+        value
+          .map(unusedKey => unusedKey.path)
+          .filter(unusedKeyPath => !unusedKeyPath.includes(dynamicKeyKeyword)),
+      );
+
       jsonfile.writeFileSync(translationFilePath, cleanedTranslationFileContent, {
         spaces: 2,
       });
